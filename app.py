@@ -7,13 +7,13 @@ from io import BytesIO
 
 # Page configuration
 st.set_page_config(
-    page_title="Stable Diffusion Image Generator",
+    page_title="Stable Diffusion Image Generator with JOCO",
     page_icon="🎨",
     layout="wide"
 )
 
 # App title and description
-st.title("Stable Diffusion Image Generator")
+st.title("Stable Diffusion Image Generator with JOCO")
 st.markdown("Generate images from text prompts using Stable Diffusion.")
 
 # Sidebar for settings
@@ -27,20 +27,6 @@ with st.sidebar:
         height=100
     )
     
-    # Image size options
-    st.subheader("Image Size")
-    size_options = {
-        "512x512": (512, 512),
-        "768x768": (768, 768),
-        "1024x1024": (1024, 1024)
-    }
-    selected_size = st.selectbox(
-        "Select image size:",
-        list(size_options.keys()),
-        index=0
-    )
-    width, height = size_options[selected_size]
-    
     # Device selection
     device = st.radio("Processing Device:", ["CPU", "GPU"], index=0)
     if device == "GPU":
@@ -53,10 +39,8 @@ with st.sidebar:
         index=0
     )
     
-    # Calculate estimated time based on device and size
-    base_time = 60 if device == "CPU" else 15  # Base time in seconds
-    size_factor = (width * height) / (512 * 512)  # Scale factor based on image size
-    estimated_time = int(base_time * size_factor)
+    # Calculate estimated time based on device
+    estimated_time = 60 if device == "CPU" else 15  # Base time in seconds
     
     # Display estimated time
     st.info(f"Estimated generation time: {estimated_time} seconds")
@@ -66,7 +50,7 @@ with st.sidebar:
     
     st.markdown("### Additional Information")
     st.markdown("""
-    - Generation time varies based on image size and device
+    - Generation time varies based on device
     - For best results, provide detailed prompts
     - Safety filters are disabled (may generate unsafe content)
     """)
@@ -122,106 +106,54 @@ if generate_button:
     if not prompt:
         st.error("Please enter a prompt before generating.")
     else:
-        with st.spinner(f"Generating {selected_size} image using {model_name}... This may take {estimated_time} seconds."):
-            # Set up progress tracking
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
+        # Add a progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+
+        def update_progress(progress, total_steps):
+            progress_bar.progress(progress)
+            status_text.text(f"Generating image... {progress}% complete")
+
+        # Generate the image
+        with st.spinner(f"Generating image... This may take {estimated_time} seconds"):
             try:
-                # If we have real generation capability
-                if REAL_GENERATION:
-                    # Show progress updates as we go
-                    for i in range(30):
-                        # Simulate progress during model loading
-                        time.sleep(0.1)
-                        progress_bar.progress(i)
-                        status_text.text(f"Loading model... {i}%")
-                    
-                    # Actual image generation
-                    device_str = device.lower()
-                    image = generate_image(prompt, device_str, model_name, width=width, height=height)
-                    
-                    # Finish progress bar
-                    for i in range(30, 101):
-                        time.sleep(0.02)
-                        progress_bar.progress(i)
-                        status_text.text(f"Generating image... {i}%")
-                    
-                    generation_type = "AI-generated image using Stable Diffusion"
-                else:
-                    # Create a simple placeholder image
-                    for i in range(95):
-                        time.sleep(0.02)
-                        progress_bar.progress(i)
-                        status_text.text(f"Creating placeholder... {i}%")
-                    
-                    # Create a simple message image instead of a unique placeholder
-                    img = Image.new('RGB', (width, height), color=(30, 30, 50))
-                    d = ImageDraw.Draw(img)
-                    d.text((20, 20), f"Model: {model_name}", fill=(255, 255, 255))
-                    d.text((20, 50), f"Size: {selected_size}", fill=(255, 255, 255))
-                    d.text((20, 80), f"Prompt: {prompt[:50]}...", fill=(255, 255, 255))
-                    d.text((20, 120), "Dependencies not installed", fill=(255, 200, 200))
-                    d.text((20, 150), "Please install required packages:", fill=(255, 200, 200))
-                    d.text((20, 180), "torch==2.0.0", fill=(200, 200, 255))
-                    d.text((20, 210), "diffusers==0.14.0", fill=(200, 200, 255))
-                    d.text((20, 240), "transformers==4.27.0", fill=(200, 200, 255))
-                    
-                    image = img
-                    
-                    # Finish progress
-                    for i in range(95, 101):
-                        time.sleep(0.02)
-                        progress_bar.progress(i)
-                        status_text.text(f"Finalizing... {i}%")
-                        
-                    generation_type = "Placeholder (install dependencies for real AI generation)"
+                # Generate the image with progress tracking
+                image = generate_image(
+                    prompt=prompt,
+                    device=device,
+                    width=512,
+                    height=512,
+                    progress_callback=update_progress
+                )
                 
-                # Clear status text
-                status_text.empty()
+                # Display the generated image
+                st.image(image, caption="Generated Image", width=512)
                 
-                # Display the image
-                st.subheader("Generated Image")
-                st.image(image, caption=f"Generated from: {prompt}", use_container_width=True)
-                
-                # Convert PIL image to bytes for download
-                buffer = BytesIO()
-                image.save(buffer, format="PNG")
-                image_bytes = buffer.getvalue()
-                
-                # Download button
+                # Add download button
+                img_byte_arr = io.BytesIO()
+                image.save(img_byte_arr, format='PNG')
+                img_byte_arr = img_byte_arr.getvalue()
                 st.download_button(
                     label="Download Image",
-                    data=image_bytes,
-                    file_name=f"stable_diffusion_image_{selected_size}.png",
+                    data=img_byte_arr,
+                    file_name="generated_image_512x512.png",
                     mime="image/png"
                 )
                 
-                st.success("Image generated successfully!")
-                st.info(f"**Note:** {generation_type}")
-                
             except Exception as e:
-                st.error(f"An error occurred during image generation: {str(e)}")
-                st.markdown(f"""
-                **Possible solutions:**
-                - Try a different prompt
-                - Check your internet connection
-                - If using a Hugging Face model, run `huggingface-cli login` to authenticate
-                - Try a different model from the dropdown list
-                - Try a smaller image size
-                """)
+                st.error(f"An error occurred: {str(e)}")
+                st.error("Please check your dependencies and try again.")
 
 # Display initial instructions if no image has been generated
 if 'generate_button' not in locals() or not generate_button:
     st.markdown("""
     ## How to use:
     1. Enter a descriptive prompt in the sidebar
-    2. Select your desired image size
-    3. Choose your processing device (if available)
-    4. Select a Stable Diffusion model
-    5. Click "Generate Image"
-    6. Wait for the generation to complete (estimated time shown in sidebar)
-    7. Download your image if desired
+    2. Choose your processing device (if available)
+    3. Select a Stable Diffusion model
+    4. Click "Generate Image"
+    5. Wait for the generation to complete (estimated time shown in sidebar)
+    6. Download your image if desired
     
     The more detailed your prompt, the better the results will be!
     """)
