@@ -1,6 +1,15 @@
-# repl-nix-workspace
+# Stable Diffusion Image Generator with JOCO
 
-A Python project for experimenting with PyTorch, HuggingFace Transformers, Diffusers, and Streamlit.
+![Stable Diffusion Image Generator](thumb.png)
+
+A Streamlit-based web application for generating images using Stable Diffusion. This project provides an intuitive interface for creating AI-generated images from text prompts.
+
+## Features
+- Text-to-image generation using Stable Diffusion
+- Real-time progress tracking during image generation
+- Support for both CPU and GPU processing
+- Multiple model options
+- Easy-to-use interface with Streamlit
 
 ## Requirements
 - Python >= 3.11
@@ -25,17 +34,25 @@ A Python project for experimenting with PyTorch, HuggingFace Transformers, Diffu
 
 ## Usage
 
-You can start developing your application using the installed libraries. If you have a Streamlit app (e.g., `app.py`), you can run:
+1. Start the Streamlit application:
+   ```bash
+   streamlit run app.py
+   ```
 
-```bash
-streamlit run app.py
-```
+2. Open your web browser and navigate to the provided local URL (typically http://localhost:8501)
+
+3. Enter your text prompt in the sidebar
+4. Choose your processing device (CPU/GPU)
+5. Select a Stable Diffusion model
+6. Click "Generate Image" and wait for the result
 
 ## Project Structure
+- `app.py`: Main Streamlit application
+- `utils.py`: Utility functions for image generation
 - `pyproject.toml`: Project metadata and dependencies
 - `requirements.txt`: List of Python dependencies
 - `README.md`: Project documentation
 
 ## License
 
-Add your license information here. 
+This project is licensed under the MIT License - see the LICENSE file for details. 
