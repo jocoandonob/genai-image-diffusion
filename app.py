@@ -27,6 +27,20 @@ with st.sidebar:
         height=100
     )
     
+    # Image size options
+    st.subheader("Image Size")
+    size_options = {
+        "512x512": (512, 512),
+        "768x768": (768, 768),
+        "1024x1024": (1024, 1024)
+    }
+    selected_size = st.selectbox(
+        "Select image size:",
+        list(size_options.keys()),
+        index=0
+    )
+    width, height = size_options[selected_size]
+    
     # Device selection
     device = st.radio("Processing Device:", ["CPU", "GPU"], index=0)
     if device == "GPU":
@@ -35,16 +49,24 @@ with st.sidebar:
     # Model selection
     model_name = st.selectbox(
         "Model:",
-        ["runwayml/stable-diffusion-v1-5", "runwayml/stable-diffusion-v1-4", "CompVis/stable-diffusion-v1-4"],
+        ["runwayml/stable-diffusion-v1-5", "CompVis/stable-diffusion-v1-4"],
         index=0
     )
+    
+    # Calculate estimated time based on device and size
+    base_time = 60 if device == "CPU" else 15  # Base time in seconds
+    size_factor = (width * height) / (512 * 512)  # Scale factor based on image size
+    estimated_time = int(base_time * size_factor)
+    
+    # Display estimated time
+    st.info(f"Estimated generation time: {estimated_time} seconds")
     
     # Generation button
     generate_button = st.button("Generate Image", type="primary", use_container_width=True)
     
     st.markdown("### Additional Information")
     st.markdown("""
-    - Generation takes longer on CPU (1-5 minutes)
+    - Generation time varies based on image size and device
     - For best results, provide detailed prompts
     - Safety filters are disabled (may generate unsafe content)
     """)
@@ -63,9 +85,6 @@ with st.sidebar:
     st.code("""
     pip install torch==2.0.0 diffusers==0.14.0 transformers==4.27.0
     """)
-
-# We've removed the generate_prompt_based_image function
-# since we're using a simpler placeholder message now
 
 # Try to import real generation capabilities if available
 try:
@@ -103,9 +122,10 @@ if generate_button:
     if not prompt:
         st.error("Please enter a prompt before generating.")
     else:
-        with st.spinner(f"Generating image using {model_name}... This may take a while, especially on CPU."):
+        with st.spinner(f"Generating {selected_size} image using {model_name}... This may take {estimated_time} seconds."):
             # Set up progress tracking
             progress_bar = st.progress(0)
+            status_text = st.empty()
             
             try:
                 # If we have real generation capability
@@ -115,15 +135,17 @@ if generate_button:
                         # Simulate progress during model loading
                         time.sleep(0.1)
                         progress_bar.progress(i)
+                        status_text.text(f"Loading model... {i}%")
                     
                     # Actual image generation
                     device_str = device.lower()
-                    image = generate_image(prompt, device_str, model_name)
+                    image = generate_image(prompt, device_str, model_name, width=width, height=height)
                     
                     # Finish progress bar
                     for i in range(30, 101):
                         time.sleep(0.02)
                         progress_bar.progress(i)
+                        status_text.text(f"Generating image... {i}%")
                     
                     generation_type = "AI-generated image using Stable Diffusion"
                 else:
@@ -131,17 +153,19 @@ if generate_button:
                     for i in range(95):
                         time.sleep(0.02)
                         progress_bar.progress(i)
+                        status_text.text(f"Creating placeholder... {i}%")
                     
                     # Create a simple message image instead of a unique placeholder
-                    img = Image.new('RGB', (512, 512), color=(30, 30, 50))
+                    img = Image.new('RGB', (width, height), color=(30, 30, 50))
                     d = ImageDraw.Draw(img)
                     d.text((20, 20), f"Model: {model_name}", fill=(255, 255, 255))
-                    d.text((20, 50), f"Prompt: {prompt[:50]}...", fill=(255, 255, 255))
-                    d.text((20, 100), "Dependencies not installed", fill=(255, 200, 200))
-                    d.text((20, 130), "Please install required packages:", fill=(255, 200, 200))
-                    d.text((20, 160), "torch==2.0.0", fill=(200, 200, 255))
-                    d.text((20, 180), "diffusers==0.14.0", fill=(200, 200, 255))
-                    d.text((20, 200), "transformers==4.27.0", fill=(200, 200, 255))
+                    d.text((20, 50), f"Size: {selected_size}", fill=(255, 255, 255))
+                    d.text((20, 80), f"Prompt: {prompt[:50]}...", fill=(255, 255, 255))
+                    d.text((20, 120), "Dependencies not installed", fill=(255, 200, 200))
+                    d.text((20, 150), "Please install required packages:", fill=(255, 200, 200))
+                    d.text((20, 180), "torch==2.0.0", fill=(200, 200, 255))
+                    d.text((20, 210), "diffusers==0.14.0", fill=(200, 200, 255))
+                    d.text((20, 240), "transformers==4.27.0", fill=(200, 200, 255))
                     
                     image = img
                     
@@ -149,8 +173,12 @@ if generate_button:
                     for i in range(95, 101):
                         time.sleep(0.02)
                         progress_bar.progress(i)
+                        status_text.text(f"Finalizing... {i}%")
                         
                     generation_type = "Placeholder (install dependencies for real AI generation)"
+                
+                # Clear status text
+                status_text.empty()
                 
                 # Display the image
                 st.subheader("Generated Image")
@@ -165,7 +193,7 @@ if generate_button:
                 st.download_button(
                     label="Download Image",
                     data=image_bytes,
-                    file_name="stable_diffusion_image.png",
+                    file_name=f"stable_diffusion_image_{selected_size}.png",
                     mime="image/png"
                 )
                 
@@ -180,6 +208,7 @@ if generate_button:
                 - Check your internet connection
                 - If using a Hugging Face model, run `huggingface-cli login` to authenticate
                 - Try a different model from the dropdown list
+                - Try a smaller image size
                 """)
 
 # Display initial instructions if no image has been generated
@@ -187,11 +216,12 @@ if 'generate_button' not in locals() or not generate_button:
     st.markdown("""
     ## How to use:
     1. Enter a descriptive prompt in the sidebar
-    2. Select your processing device (if available)
-    3. Choose a Stable Diffusion model
-    4. Click "Generate Image"
-    5. Wait for the generation to complete (this may take 1-5 minutes on CPU)
-    6. Download your image if desired
+    2. Select your desired image size
+    3. Choose your processing device (if available)
+    4. Select a Stable Diffusion model
+    5. Click "Generate Image"
+    6. Wait for the generation to complete (estimated time shown in sidebar)
+    7. Download your image if desired
     
     The more detailed your prompt, the better the results will be!
     """)

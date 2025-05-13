@@ -6,7 +6,7 @@ def check_gpu_availability():
     """Check if a CUDA-compatible GPU is available."""
     return torch.cuda.is_available()
 
-def generate_image(prompt, device="cpu", model_id="runwayml/stable-diffusion-v1-5"):
+def generate_image(prompt, device="cpu", model_id="runwayml/stable-diffusion-v1-5", width=512, height=512):
     """
     Generate an image using Stable Diffusion based on the prompt.
     
@@ -14,6 +14,8 @@ def generate_image(prompt, device="cpu", model_id="runwayml/stable-diffusion-v1-
         prompt (str): The text prompt to generate an image from
         device (str): The device to use, either "cpu" or "gpu"
         model_id (str): The model ID to use for generation
+        width (int): The width of the generated image
+        height (int): The height of the generated image
         
     Returns:
         PIL.Image: The generated image
@@ -38,8 +40,8 @@ def generate_image(prompt, device="cpu", model_id="runwayml/stable-diffusion-v1-
     # Disable safety checker to prevent black images
     pipe.safety_checker = None
     
-    # Generate the image
-    image = pipe(prompt).images[0]
+    # Generate the image with specified dimensions
+    image = pipe(prompt, width=width, height=height).images[0]
     
     # Clean up after generation
     pipe = None
